@@ -13,6 +13,8 @@ void main() {
   var lines = file.readAsLinesSync();
   var games = lines.map(parseLine).toList();
   games.sort((a, b) => a.hand.compareTo(b.hand));
+  // game was modified to only work for part 2.
+  // to see part 1 look in git history.
   var sumOfWinnings =
       games.mapIndexed((index, game) => game.bet * (index + 1)).sum;
   print(sumOfWinnings);
@@ -73,19 +75,25 @@ class Hand {
   }
 
   bool winsFrom(Hand other) {
-    if (handType == other.handType) {
+    var myHandType = this.replacedJokers().handType;
+    var otherHandType = other.replacedJokers().handType;
+    if (myHandType == otherHandType) {
       // compare cards
-      for (var i = 0; i < cards.length; i++) {
-        var card = cards[i];
-        var otherCard = other.cards[i];
-        if (card.value != otherCard.value) {
-          return card.value > otherCard.value;
-        }
-      }
-      throw Exception('Hands are equal');
+      return winsByCardValue(other);
       // return false;
     }
-    return handType.index > other.handType.index;
+    return myHandType.index > otherHandType.index;
+  }
+
+  bool winsByCardValue(Hand other) {
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      var otherCard = other.cards[i];
+      if (card.value != otherCard.value) {
+        return card.value > otherCard.value;
+      }
+    }
+    throw Exception('Hands are equal');
   }
 
   int compareTo(Hand other) {
@@ -93,6 +101,29 @@ class Hand {
       return 1;
     }
     return -1;
+  }
+
+  Hand replacedJokers() {
+    var groups = cardGroups;
+    if (!groups.containsKey('J')) {
+      return this;
+    }
+    var nonJokerGroups =
+        groups.values.where((element) => !element[0].isJoker()).toList();
+    if (nonJokerGroups.isEmpty) {
+      // all jokers so we can continue
+      return this;
+    }
+    var biggestGroup =
+        nonJokerGroups.reduce((a, b) => a.length > b.length ? a : b);
+    var biggetsLabel = biggestGroup[0].label;
+    var newCards = cards.map((card) {
+      if (card.isJoker()) {
+        return Card(biggetsLabel);
+      }
+      return card;
+    }).toList();
+    return Hand(newCards);
   }
 
   @override
@@ -120,7 +151,7 @@ class Card {
       case 'T':
         return 10;
       case 'J':
-        return 11;
+        return 1;
       case 'Q':
         return 12;
       case 'K':
@@ -130,6 +161,10 @@ class Card {
       default:
         return int.parse(label);
     }
+  }
+
+  bool isJoker() {
+    return label == 'J';
   }
 
   @override
